@@ -1,1 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kushiro Twilight Guide - 釧路の日没予報</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SunCalc.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;800&display=swap');
 
+        body {
+            font-family: 'Inter', -apple-system, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            margin: 0;
+            overflow-x: hidden; 
+        }
+
+        /* 釧路の複雑で鮮やかな夕焼けを表現するアニメーション背景 */
+        .sunset-bg {
+            /* 紫をより赤く明るく (#db2777)、緑をより鮮やかに (#10b981) 調整 */
+            background: linear-gradient(180deg, 
+                #1e1b4b 0%,    /* Deep Navy */
+                #db2777 25%,   /* Bright Reddish Purple (Magenta) */
+                #fb923c 50%,   /* Vivid Orange */
+                #f59e0b 75%,   /* Golden Amber */
+                #10b981 100%   /* Vibrant Emerald Green */
+            );
+            background-size: 100% 400%;
+            animation: gradientMove 18s ease-in-out infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 0%; }
+            50% { background-position: 0% 100%; }
+            100% { background-position: 0% 0%; }
+        }
+
+        .sun-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,165,0,0.3) 40%, transparent 70%);
+            filter: blur(50px);
+            border-radius: 50%;
+            z-index: 0;
+            top: 5%;
+            right: -100px;
+            pointer-events: none;
+            animation: sunPulse 10s ease-in-out infinite;
+        }
+
+        @keyframes sunPulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #fff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .fade-in { animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="sunset-bg min-h-screen flex flex-col items-center justify-start py-8 px-4 relative text-white">
+    
+    <div class="sun-glow"></div>
+
+    <div class="w-full max-w-lg mx-auto glass rounded-3xl p-6 md:p-10 relative z-10 my-auto">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">Kushiro Twilight Guide</h1>
+            <p class="text-xs md:text-sm uppercase tracking-[0.2em] font-bold opacity-90 text-orange-50">世界三大夕日の街・釧路</p>
+        </header>
+
+        <div class="mb-8">
+            <label class="block text-xs font-bold uppercase tracking-wider opacity-60 mb-3 ml-1 text-center">観測日を選択</label>
+            <div class="relative">
+                <input type="date" id="date-picker" 
+                    class="w-full p-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white text-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-300 appearance-none cursor-pointer text-center">
+            </div>
+        </div>
+
+        <div id="result-display" class="space-y-6">
+            <div id="loader" class="hidden py-10 text-center"><div class="loader mx-auto"></div><p class="mt-4 text-sm opacity-60 tracking-widest uppercase">Calculating...</p></div>
+            <div id="error-message" class="hidden text-center py-10">
+                <p class="text-3xl mb-4">😿</p>
+                <p class="text-lg font-medium">データの取得に失敗しました</p>
+            </div>
+
+            <div id="data-container" class="hidden fade-in">
+                
+                <!-- 日没時間メインパネル (カウントダウンを統合) -->
+                <div class="bg-black/30 rounded-3xl p-8 mb-6 border border-white/10 text-center shadow-inner relative overflow-hidden">
+                    <h2 id="selected-date-display" class="text-sm font-bold opacity-60 mb-4 tracking-tighter uppercase tracking-[0.2em]">---</h2>
+                    
+                    <div id="countdown-wrapper" class="hidden mb-2">
+                        <span class="text-[10px] font-bold uppercase tracking-widest opacity-70">日没まであと</span>
+                        <p id="countdown-text" class="text-lg font-bold text-orange-300">--時間 --分 --秒</p>
+                    </div>
+
+                    <div class="flex flex-col items-center">
+                        <span class="text-7xl md:text-8xl font-black tracking-tighter" id="sunset-time-display">--:--</span>
+                        <div class="mt-4 flex items-center gap-2 text-orange-200">
+                            <span class="text-xs font-bold uppercase tracking-widest">日没予定時刻</span>
+                            <span id="sunset-azimuth" class="text-[10px] bg-white/20 px-2 py-1 rounded-full border border-white/10">方角: --</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ステータスバッジ -->
+                <div id="badge-section" class="space-y-3 mb-6">
+                    <div id="recommend-info" class="hidden bg-amber-400/30 border border-amber-300/30 p-4 rounded-2xl flex items-center gap-3">
+                        <span class="text-xl">✨</span>
+                        <p class="text-xs font-bold leading-tight text-amber-50 text-center w-full">幣舞橋から夕日がよく見える季節です</p>
+                    </div>
+                    
+                    <div id="cloud-warning" class="hidden bg-red-500/30 border border-red-400/30 p-4 rounded-2xl flex items-center gap-3">
+                        <span class="text-xl">⚠️</span>
+                        <p class="text-xs font-bold leading-tight text-center w-full">曇天のため、夕日が見られない可能性があります</p>
+                    </div>
+                </div>
+
+                <!-- 詳細タイル -->
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- 天気と気温 -->
+                    <div class="glass bg-white/5 p-5 rounded-2xl border border-white/10 flex flex-col items-center justify-center min-h-[130px] shadow-lg">
+                        <span id="weather-icon" class="text-5xl mb-2">--</span>
+                        <span id="temperature-display" class="text-lg font-bold">-- / --</span>
+                    </div>
+                    <!-- マジックアワー案内 -->
+                    <div class="glass bg-white/5 p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center min-h-[130px] shadow-lg">
+                        <span class="text-[10px] font-bold opacity-50 mb-2 uppercase tracking-widest text-center">Magic Hour</span>
+                        <div class="text-left w-full space-y-1">
+                            <p class="text-[10px] flex justify-between border-b border-white/5 pb-1"><span>Golden:</span> <span id="golden-hour-time" class="font-bold">--:--</span></p>
+                            <p class="text-[10px] flex justify-between pt-1"><span>Blue:</span> <span id="blue-hour-time" class="font-bold">--:--</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 撮影アドバイス -->
+                <div class="mt-4 glass bg-black/20 p-4 rounded-2xl border border-white/10 text-center md:text-left">
+                    <div class="flex items-center justify-center md:justify-start gap-2 mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-300"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+                        <span class="text-[10px] font-bold uppercase tracking-widest opacity-70">Photo Advice</span>
+                    </div>
+                    <p id="photo-advice" class="text-[11px] leading-relaxed opacity-90 italic">日の入り前後の15分が最も美しく撮れるチャンスです。</p>
+                </div>
+
+                <div id="weather-error" class="hidden mt-6 p-3 bg-black/20 rounded-xl opacity-50 text-[10px] text-center">
+                    ※ 天気予報は「過去3ヶ月〜今後2週間」の範囲のみ対応しています。
+                </div>
+
+            </div>
+        </div>
+        
+        <footer class="mt-10 pt-6 border-t border-white/10 text-center flex flex-col items-center gap-1">
+            <p class="text-[10px] uppercase tracking-[0.2em] font-bold opacity-40">Kushiro City, Hokkaido, Japan</p>
+            <p class="text-[10px] uppercase tracking-[0.1em] font-bold opacity-40">Credit: Kazuyoshi SAITO</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const datePicker = document.getElementById('date-picker');
+            const loader = document.getElementById('loader');
+            const errorMessage = document.getElementById('error-message');
+            const dataContainer = document.getElementById('data-container');
+            const weatherIcon = document.getElementById('weather-icon');
+            const tempDisplay = document.getElementById('temperature-display');
+            const recommendInfo = document.getElementById('recommend-info');
+            const sunsetTimeDisplay = document.getElementById('sunset-time-display');
+            const selectedDateDisplay = document.getElementById('selected-date-display');
+            const weatherErrorUI = document.getElementById('weather-error');
+            const cloudWarning = document.getElementById('cloud-warning');
+            const azimuthDisplay = document.getElementById('sunset-azimuth');
+            const goldenTimeDisplay = document.getElementById('golden-hour-time');
+            const blueTimeDisplay = document.getElementById('blue-hour-time');
+            const countdownWrapper = document.getElementById('countdown-wrapper');
+            const countdownText = document.getElementById('countdown-text');
+            const photoAdvice = document.getElementById('photo-advice');
+
+            const KUSHIRO_LAT = 42.9851;
+            const KUSHIRO_LNG = 144.3817;
+            let countdownTimer = null;
+
+            function getTodayIsoDate() {
+                const jstOffset = 9 * 60;
+                const today = new Date();
+                const localOffset = today.getTimezoneOffset();
+                const jstDate = new Date(today.getTime() + (jstOffset + localOffset) * 60000);
+                return jstDate.toISOString().split('T')[0];
+            }
+
+            function getWeatherIcon(code) {
+                switch (true) {
+                    case (code === 0): return '☀️';
+                    case (code >= 1 && code <= 2): return '🌤️';
+                    case (code === 3): return '☁️';
+                    case (code >= 45 && code <= 48): return '🌫️';
+                    case (code >= 51 && code <= 67):
+                    case (code >= 80 && code <= 82): return '🌧️';
+                    case (code >= 71 && code <= 77):
+                    case (code >= 85 && code <= 86): return '❄️';
+                    case (code >= 95 && code <= 99): return '⛈️';
+                    default: return '❓';
+                }
+            }
+
+            function getAzimuthName(azimuth) {
+                const deg = (azimuth * 180 / Math.PI) + 180; 
+                const sectors = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"];
+                const index = Math.round(deg / 22.5) % 16;
+                return sectors[index];
+            }
+
+            function updateCountdown(sunsetTime) {
+                if (countdownTimer) clearInterval(countdownTimer);
+                
+                function run() {
+                    const now = new Date();
+                    const diff = sunsetTime - now;
+                    
+                    if (diff > 0) {
+                        countdownWrapper.classList.remove('hidden');
+                        const h = Math.floor(diff / 3600000);
+                        const m = Math.floor((diff % 3600000) / 60000);
+                        const s = Math.floor((diff % 60000) / 1000);
+                        countdownText.textContent = `${h}時間 ${m}分 ${s}秒`;
+                    } else {
+                        countdownWrapper.classList.add('hidden');
+                        clearInterval(countdownTimer);
+                    }
+                }
+                
+                run();
+                countdownTimer = setInterval(run, 1000);
+            }
+
+            async function updateDisplay(dateStr) {
+                if (!dateStr) return;
+
+                dataContainer.classList.add('hidden');
+                loader.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+                weatherErrorUI.classList.add('hidden');
+                cloudWarning.classList.add('hidden');
+                countdownWrapper.classList.add('hidden');
+
+                try {
+                    const date = new Date(dateStr + 'T12:00:00Z');
+                    const times = SunCalc.getTimes(date, KUSHIRO_LAT, KUSHIRO_LNG);
+                    const sunPos = SunCalc.getPosition(times.sunset, KUSHIRO_LAT, KUSHIRO_LNG);
+                    const sunsetTime = times.sunset;
+
+                    if (!sunsetTime || isNaN(sunsetTime.getTime())) throw new Error('Invalid sunset');
+                    
+                    const fmt = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tokyo' });
+                    const dFmt = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Tokyo' });
+
+                    sunsetTimeDisplay.textContent = fmt.format(sunsetTime);
+                    selectedDateDisplay.textContent = dFmt.format(new Date(dateStr + 'T00:00:00'));
+                    azimuthDisplay.textContent = `方角: ${getAzimuthName(sunPos.azimuth)}`;
+                    
+                    goldenTimeDisplay.textContent = fmt.format(times.goldenHour);
+                    blueTimeDisplay.textContent = fmt.format(times.dusk);
+
+                    const todayStr = getTodayIsoDate();
+                    if (dateStr === todayStr) {
+                        updateCountdown(sunsetTime);
+                    } else {
+                        if (countdownTimer) clearInterval(countdownTimer);
+                    }
+                    
+                    const month = date.getUTCMonth(); 
+                    const day = date.getUTCDate();
+                    const isSpring = (month === 1 && day >= 20) || (month === 2) || (month === 3 && day <= 20);
+                    const isAutumn = (month === 7 && day >= 23) || (month === 8) || (month === 9 && day <= 23);
+                    recommendInfo.classList.toggle('hidden', !(isSpring || isAutumn));
+
+                    try {
+                        const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${KUSHIRO_LAT}&longitude=${KUSHIRO_LNG}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&start_date=${dateStr}&end_date=${dateStr}`;
+                        const response = await fetch(weatherApiUrl);
+                        if (!response.ok) throw new Error();
+                        const weatherData = await response.json();
+
+                        if (weatherData && weatherData.daily) {
+                            const daily = weatherData.daily;
+                            const code = daily.weather_code[0];
+                            weatherIcon.textContent = getWeatherIcon(code);
+                            tempDisplay.textContent = `${Math.round(daily.temperature_2m_max[0])}℃ / ${Math.round(daily.temperature_2m_min[0])}℃`;
+                            
+                            if (code >= 3) cloudWarning.classList.remove('hidden');
+                            
+                            if (code === 0) photoAdvice.textContent = "快晴です。太陽の輪郭がはっきりと沈む様子を狙いましょう。";
+                            else if (code <= 2) photoAdvice.textContent = "雲が適度にあるため、空がドラマチックに焼ける可能性があります。";
+                            else photoAdvice.textContent = "雲が多いですが、隙間から漏れる「天使の梯子」が見えるかもしれません。";
+                        }
+                    } catch (e) {
+                        weatherIcon.textContent = 'N/A';
+                        weatherErrorUI.classList.remove('hidden');
+                    }
+
+                    loader.classList.add('hidden');
+                    dataContainer.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error(error);
+                    loader.classList.add('hidden');
+                    errorMessage.classList.remove('hidden');
+                }
+            }
+
+            datePicker.addEventListener('change', (e) => updateDisplay(e.target.value));
+            const today = getTodayIsoDate();
+            datePicker.value = today;
+            updateDisplay(today);
+        });
+    </script>
+</body>
+</html>
