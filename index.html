@@ -17,6 +17,7 @@
             overflow-x: hidden; 
         }
 
+        /* 釧路の夕焼けを表現する背景アニメーション */
         .sunset-bg {
             background: linear-gradient(180deg, 
                 #1e1b4b 0%,    
@@ -145,14 +146,15 @@
                                 <text x="95" y="52" text-anchor="middle" fill="white" font-size="5" font-weight="bold" opacity="0.4">E</text>
                                 <text x="5" y="52" text-anchor="middle" fill="white" font-size="5" font-weight="bold" opacity="0.4">W</text>
 
-                                <!-- 釧路川（方位：約70°から250°へ） -->
-                                <line x1="92" y1="35" x2="8" y2="65" stroke="rgba(255,255,255,0.25)" stroke-width="14" stroke-linecap="round" />
-                                <!-- ラベルが切れないようにx座標と回転軸を調整 -->
-                                <text x="70" y="40" fill="white" font-size="6" font-weight="bold" opacity="0.6" transform="rotate(20 70 40)" text-anchor="middle">Kushiro River</text>
+                                <!-- 釧路川（右上がりのライン） -->
+                                <line x1="8" y1="65" x2="92" y2="35" stroke="rgba(255,255,255,0.25)" stroke-width="12" stroke-linecap="round" />
+                                <!-- 川の文字をラインに重ねて右側に配置（重なりを回避） -->
+                                <text x="72" y="42" fill="white" font-size="6.5" font-weight="bold" opacity="0.5" transform="rotate(-19, 72, 42)" text-anchor="middle">Kushiro River</text>
 
-                                <!-- 幣舞橋（SSE 約160°方向に架かる） -->
-                                <line x1="43" y1="31" x2="57" y2="69" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.8" />
-                                <text x="43" y="25" text-anchor="middle" fill="white" font-size="7" font-weight="bold" opacity="1.0">幣舞橋</text>
+                                <!-- 幣舞橋（角度 SSE 約160°） -->
+                                <line x1="38" y1="35" x2="55" y2="75" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.8" />
+                                <!-- 橋の文字を左上に大きく配置 -->
+                                <text x="35" y="30" text-anchor="middle" fill="white" font-size="7.5" font-weight="bold" opacity="1.0">幣舞橋</text>
 
                                 <!-- 日没方位ライン（動的に回転） -->
                                 <g id="compass-sun-line">
